@@ -2,8 +2,8 @@
 
 include_once($_SERVER['DOCUMENT_ROOT'] . '/api/Medoo.php');
 
-ini_set('display_errors', 1);
-error_reporting(E_ALL);
+//ini_set('display_errors', 1);
+//error_reporting(E_ALL);
 
 use Medoo\Medoo;
 
@@ -24,80 +24,80 @@ $database = new Medoo(array(
     'password' => RConfig::$dbPassword
 ));
 
-//////$data = $database->select('users', '*');
 
-//select($table, $columns, $where)
-//select($table, $join, $columns, $where)
-//insert($table, $data)
-//update($table, $data, $where)
-//delete($table, $where)
-
-/*
-$data = $database->select('users', [
-    'user_name',
-    'email'
-], [
-    'user_id' => 50
-]);
-*/
-
-/////echo json_encode($data);
-
+/**
+ * RESTWork
+ *
+ * This class processed with shop data (users, merchants and coupons).
+ */
 class RESTWork {
 	private $method = 'GET';
 	private $operator = '';
 	private $enity = '';
-	private $paramsNumber;
 	private $paramsList;
 	private $params;
-	private $content;
+	private $methods;
 	private $database;
 
+    /**
+     * Returns generated token.
+     *
+     * @return string
+     */
 	public function generateToken () {
 		return uniqid('U'.mt_rand(0, PHP_INT_MAX), true);
 	}
 
 	public function __construct($databaseObj) {
 		$this->database = $databaseObj;
+		$this->methods['GET'] = 'select';
+		$this->methods['POST'] = 'insert';
+		$this->methods['PATCH'] = 'update';
+		$this->methods['DELETE'] = 'delete';
 	}
 
-	public function GET () {
-		$this->method = 'GET';
-		$this->operator = 'select';
-		$this->paramsNumber = 3;
-		$this->paramsList = array('table', 'columns', 'where');
+    /**
+     * Set request method.
+     *
+     * @return Object RESTWork
+     */
+	public function setMethod ($method) {
+		$this->method = $method;
+		$this->operator = $this->methods[$method];
+		switch ($method) {
+			case 'GET':
+				$this->paramsList = array('table', 'columns', 'where');
+				break;
+			case 'POST':
+				$this->paramsList = array('table', 'data');
+				break;
+			case 'PATCH':
+				$this->paramsList = array('table', 'data', 'where');
+				break;
+			case 'DELETE':
+				$this->paramsList = array('table', 'where');
+				break;
+			default:
+				$this->paramsList = array('table', 'columns', 'where');
+				break;
+		}
 		return $this;
 	}
 
-	public function POST () {
-		$this->method = 'POST';
-		$this->operator = 'insert';
-		$this->paramsNumber = 2;
-		$this->paramsList = array('table', 'data');
-		return $this;
-	}
-
-	public function PATCH () {
-		$this->method = 'PATCH';
-		$this->operator = 'update';
-		$this->paramsNumber = 3;
-		$this->paramsList = array('table', 'data', 'where');
-		return $this;
-	}
-
-	public function DELETE () {
-		$this->method = 'DELETE';
-		$this->operator = 'delete';
-		$this->paramsNumber = 2;
-		$this->paramsList = array('table', 'where');
-		return $this;
-	}
-
+    /**
+     * Prepare content for enity "users" 
+     *
+     * @param array $params
+     * @param array $content
+     * @return object RESTWork
+     */
 	public function users ($params, $content) {
 		$this->enity = 'users';
 		$this->params['table'] = 'users';
 		$this->params['columns'] = array('id', 'token', 'name', 'email', 'datetime'); //'password',
 		if(isset($params[0]) && !empty($params[0])) {
+			// SQL Injection filter
+			$params[0] = preg_replace('/([^\.\w\d])/i', '', $params[0]);
 			$this->params['where'] = array('token' => $params[0]);
 		}
 		$this->params['data'] = $content;
@@ -111,6 +111,13 @@ class RESTWork {
 		return $this;
 	}
 
+    /**
+     * Prepare content for enity "merchants" 
+     *
+     * @param array $params
+     * @param array $content
+     * @return object RESTWork
+     */
 	public function merchants ($params, $content) {
 		$this->enity = 'merchants';
 		$this->params['table'] = 'merchants';
@@ -123,40 +130,22 @@ class RESTWork {
 
 			
 			$this->operator = 'query';
-			$this->paramsNumber = 1;
 			$this->paramsList = array('query');
 			$this->params['query'] = "SELECT `merchants`.`id`,`merchants`.`name`,`merchants`.`description`,`coupons`.`code` FROM `merchants` LEFT JOIN `relations` ON `merchants`.`id` = `relations`.`muid` LEFT JOIN `coupons` ON `coupons`.`id` = `relations`.`cid` AND `relations`.`type` = 'merchants' ORDER BY `merchants`.`id`";
-			
-
-/*
-			//$this->params['table'] = 'relations';
-			$this->paramsNumber = 4;
-			$this->paramsList = array('table', 'join', 'columns', 'where');
-			$this->params['columns'] = array(
-				'merchants.id',
-				'merchants.name',
-				'merchants.description',
-				'coupons.code'
-			);
-			// LEFT JOIN API
-			$this->params['join'] = array(
-				'[<]merchants' => array('id' => 'id'),
-				'[>]coupons' => array('cid' => 'id'),
-			);
-			$this->params['join'] = array(
-				'[>]relations' => array('id' => 'muid', 'coupons.id' => 'cid', 'type' => "'merchants'"),
-				'[>]coupons' => array('id'),
-			);
-			*/
-			//$this->params['where'] = array('relations.type' => 'merchants');
-			
 		}
 		if(isset($params[0]) && !empty($params[0])) {
-			$this->params['where'] = array('id' => $params[0]);
+			$this->params['where'] = array('id' => intval($params[0]));
 		}
 		return $this;
 	}
 
+    /**
+     * Prepare content for enity "coupons" 
+     *
+     * @param array $params 
+     * @param array $content
+     * @return object RESTWork
+     */
 	public function coupons ($params, $content) {
 		$this->enity = 'coupons';
 		$this->params['table'] = 'coupons';
@@ -173,13 +162,12 @@ class RESTWork {
 			if ($params[0] == 'uid') {
 				$type = 'users';
 			}
+			$id = intval($params[1]);
 		}
-
-		//mysqli::real_escape_string
+		
 		$this->operator = 'query';
-		$this->paramsNumber = 1;
 		$this->paramsList = array('query');
-		$this->params['query'] = "SELECT `coupons`.`id`,`coupons`.`name`,`coupons`.`code` as 'coupon', `" . $type ."`.`name` as '" . $type ."' FROM `coupons` LEFT JOIN `relations` ON `coupons`.`id` = `relations`.`cid` LEFT JOIN `" . $type ."` ON `" . $type ."`.`id` = `relations`.`muid` AND `relations`.`type` = '" . $type ."' ORDER BY `coupons`.`id`";		
+		$this->params['query'] = "SELECT `coupons`.`id`,`coupons`.`name`,`coupons`.`code` as 'coupon', `" . $type ."`.`name` as '" . $type ."' FROM `coupons` LEFT JOIN `relations` ON `coupons`.`id` = `relations`.`cid` LEFT JOIN `" . $type ."` ON `" . $type ."`.`id` = `relations`.`muid` AND `relations`.`type` = '" . $type ."' WHERE `" . $type ."`.`id` = " . $id . " ORDER BY `coupons`.`id`";		
 		return $this;
 	}
 
@@ -187,6 +175,16 @@ class RESTWork {
 		echo '<pre>' .  var_export($var,true) . '</pre>';
 	}
 
+    /**
+     * Get content from dataBase in JSON format
+     *
+     * @var operator string - Medoo (BD framework) Class method
+     * @var database object - Medoo object
+     * @var params array - list of params for Medoo Class method
+     * @var paramsList array - Medoo Class method order List
+     *
+     * @return string JSON
+     */
 	public function exec () {
 		if (empty($this->database)) {
 			return $this->error('DB var is NULL');
@@ -197,11 +195,8 @@ class RESTWork {
 		if (empty($this->enity)) {
 			return $this->error('enity var is NULL');
 		}
-		if (count($this->paramsList) < $this->paramsNumber) {
-			return $this->error('paramsList number more then paramsNumber');
-		}
-		self::debug($this->params);
-		switch ($this->paramsNumber) {
+		$paramsNumber = count($this->paramsList);
+		switch ($paramsNumber) {
 			case 1:
 				$result = $this->database->{$this->operator}(
 					$this->params[$this->paramsList[0]]
@@ -232,26 +227,47 @@ class RESTWork {
 					);
 				break;
 		}
-		//$account_id = $database->id(); //
 		if (is_array($result)) {
 			return json_encode($result);
+		} elseif (is_string($result)) {
+			return $result;
 		} else {
-			return json_encode(array('status' => 'OK' ,'rowCount' => $result->rowCount()));
+			return json_encode(array('Message' => 'OK' ,'rowCount' => $result->rowCount()));
 		}
 	}
 
+    /**
+     * Stub 
+     *
+     * @param string $name 
+     * @param array $arguments
+     * @return object RESTWork
+     */
     public function __call($name, $arguments)
     {
        return $this;
     }
 
+    /**
+     * Stub 
+     *
+     * @param string $name 
+     * @param array $arguments
+     * @return object RESTWork
+     */
     public static function __callStatic($name, $arguments)
     {
         return $this;
     }
 
+    /**
+     * Set error message 
+     *
+     * @param string $msg 
+     * @return string JSON
+     */
 	private function error ($msg = 'Invalid invoke methods') {
-		return array('message' => $msg, 'error' => true);
+		return json_encode(array('message' => $msg, 'status' => 'error'));
 	}
 }
 
@@ -263,10 +279,9 @@ class RequestWork {
 	private $version = '';
 	private $content = '';
 	private $enity = '';
-	private $code = 200;
-	private $message = 'OK';
+	private $message = '';
 	private $response;
-	private $error = false;
+	private $status = 'OK';
 
 	public function __construct($rootDir, $method, $uri) {
 		$this->roorDir = $rootDir;
@@ -275,35 +290,57 @@ class RequestWork {
 		$this->params[0] = '';
 		$this->params[1] = '';
 	}
-
+  
     /**
-     * Returns module database connection.
-     * Can be used only if module supports sharding.
+     * Get class var.
      *
-     * @param string $module_id
-     * @param bool $bModuleInclude
-     * @return bool|CDatabase
+     * @return string method from request
      */
 	public function getMethod() {
 		return $this->method;
 	}
 
+    /**
+     * Get class var.
+     *
+     * @return string enity
+     */
 	public function getEnity() {
 		return $this->enity;
 	}
 
+    /**
+     * Get class var.
+     *
+     * @return string api version
+     */
 	public function getVersion() {
 		return $this->version;
 	}
 
+    /**
+     * Get class var.
+     *
+     * @return array JSON parsed data from input
+     */
 	public function getContent() {
 		return $this->content;
 	}
 
+    /**
+     * Get class var.
+     *
+     * @return array params from URI path (is not GET params)
+     */
 	public function getParams() {
 		return $this->params;
 	}
 
+    /**
+     * Check method from true list.
+     *
+     * @return bool check result
+     */
 	private function validateMethods() {
 		if (
 			empty($this->method) ||
@@ -319,6 +356,11 @@ class RequestWork {
 		return true;
 	}
 
+    /**
+     * Check enity from true list.
+     *
+     * @return bool check result
+     */
 	private function validateEnity() {
 		if (
 			empty($this->enity) ||
@@ -333,12 +375,14 @@ class RequestWork {
 		return true;
 	}
 
+    /**
+     * Inicialisation request data and set class vars.
+     *
+     * @return bool true (when everything is fine) and false in other cases
+     */
 	public function init() {
 		if (!$this->validateMethods()) {
-			$this->message = 'Error: invalid method';
-			$this->code = 400;
-			$this->error();
-			return false;
+			return $this->error('Error: invalid method');
 		}
 		if ($this->method != 'GET') {
 			$contentJSON = file_get_contents("php://input");
@@ -346,16 +390,10 @@ class RequestWork {
 				$this->content = json_decode($contentJSON, true);
 				$errorDecode = json_last_error();
 				if ($errorDecode != JSON_ERROR_NONE) {
-					$this->message = 'JSON parse error ' . $errorDecode;
-					$this->code = 400;
-					$this->error();
-					return false;
+					return $this->error('JSON parse error ' . $errorDecode);
 				}
 			} else {
-				$this->message = 'Error: empty content ';
-				$this->code = 400;
-				$this->error();
-				return false;
+				return $this->error('Error: empty content');
 			}
 		}
 		$path = str_replace($this->roorDir, '', $this->uri);
@@ -368,7 +406,7 @@ class RequestWork {
 		    $path = substr($path, -1 * strlen($path) , strlen($path) - 1);
 		}
 		$pathArray = explode('/',$path);
-		//var_export($pathArray);
+
 		if (isset($pathArray[0]) && isset($pathArray[1])) {
 		    $this->version = $pathArray[0];
 		    $this->enity = $pathArray[1];
@@ -379,37 +417,39 @@ class RequestWork {
 		    	$this->params[1] = $pathArray[3];
 		    }
 		} else {
-			$this->message = 'Error: invalid request';
-			$this->code = 400;
-			$this->error();
-			return false;
+			return $this->error('Error: invalid request');
 		}
 		if (!$this->validateEnity()) {
-			$this->message = 'Error: invalid enity';
-			$this->code = 400;
-			$this->error();
-			return false;
+			return $this->error('Error: invalid enity');
 		}
 		if ($this->version != 'v1') {
-			$this->message = 'Error: invalid version';
-			$this->code = 400;
-			$this->error();
-			return false;
+			return $this->error('Error: invalid version');
 		}
 		return true;
 	}
 
-	private function error() {
-		$this->error = true;
+    /**
+     * Set error status and return false for init() method faulty.
+     *
+     * @param string $errorMsg - message for output
+     * @return bool false
+     */
+	private function error($errorMsg='Error') {
+		$this->message = $errorMsg;
+		$this->status = 'error';
+		return false;
 	}
 
-	public function isError() {
-		return $this->error;
-	}
-
+    /**
+     * Returns JSON.
+     *
+     * @param string $module_id
+     * @param bool $bModuleInclude
+     * @return string JSON Respon
+     */
 	public function getResponse() {
 		$this->response['message'] = $this->message;
-		$this->response['error'] = $this->error;
+		$this->response['status'] = $this->status;
 		return json_encode($this->response);
 	}
 }
@@ -422,14 +462,7 @@ if(!$requestWork->init()) {
 	exit($requestWork->getResponse());
 }
 
-//echo 'result=<pre>' .  var_export($requestWork->getEnity(),true) . '</pre><BR><BR>'."\n\n";
-
 $restwork = new RESTWork($database);
-$result = $restwork->{$requestWork->getMethod()}()->{$requestWork->getEnity()}($requestWork->getParams(), $requestWork->getContent())->exec();
-
-
-RESTWork::debug($result);
-//RESTWork::debug($requestWork);
-//RESTWork::debug($restwork);
-
+$result = $restwork->setMethod($requestWork->getMethod())->{$requestWork->getEnity()}($requestWork->getParams(), $requestWork->getContent())->exec();
+echo $result;
 
