@@ -14,15 +14,15 @@ You can:
 * get coupon list by user id
 
 Examples:
-* https://46j.ru/api/v1/users/
-* https://46j.ru/api/v1/users/X66800988890112983045ac1176ab3b928.07902327/
-* POST https://46j.ru/api/v1/users/
-* PATCH https://46j.ru/api/v1/users/X66800988890112983045ac1176ab3b928.07902327/
-* DELETE https://46j.ru/api/v1/users/X66800988890112983045ac1176ab3b928.07902327/
-* https://46j.ru/api/v1/merchants/
-* DELETE https://46j.ru/api/v1/merchants/7
-* https://46j.ru/api/v1/coupons/mid/4
-* https://46j.ru/api/v1/coupons/uid/4
+* /api/v1/users/
+* /api/v1/users/X66800988890112983045ac1176ab3b928.07902327/
+* POST /api/v1/users/
+* PATCH /api/v1/users/X66800988890112983045ac1176ab3b928.07902327/
+* DELETE /api/v1/users/X66800988890112983045ac1176ab3b928.07902327/
+* /api/v1/merchants/
+* DELETE /api/v1/merchants/7
+* /api/v1/coupons/mid/4
+* /api/v1/coupons/uid/4
 
 
 JSON example for user add:
