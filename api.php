@@ -10,10 +10,10 @@ use Medoo\Medoo;
 // DEMO
 class RConfig {
     static $dbType = 'mysql';
-    static $dbName = 'resag464_testrestapi';
+    static $dbName = 'dbname';
     static $dbServer = 'localhost';
-    static $dbUser = 'resag464_testrestapi';
-    static $dbPassword = '123qwe123';
+    static $dbUser = 'dbuser';
+    static $dbPassword = 'pass';
 }
 
 $database = new Medoo(array(
