@@ -30,3 +30,6 @@ JSON example for user add:
 
 JSON example for update user:
 [{"name":"newname"}]
+
+Use database framework: https://github.com/catfan/Medoo
+Needle: PHP 5.4+ and PDO extension installed
